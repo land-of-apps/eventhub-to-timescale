@@ -97,6 +97,18 @@ jobs:
           echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
           python  -c "import os; print(os.environ['VIRTUAL_ENV'])"
 
+      # Begin AppMap CI language agent installation
+      - name: Install AppMap tools
+        id: install-appmap
+        uses: getappmap/install-action@v1
+        with:
+          project-type: poetry
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "ci: Add AppMap language agent and appmap.yml"
+      # End AppMap CI language agent installation
+
       - name: Lint with flake8
         run: |
           . venv/bin/activate
