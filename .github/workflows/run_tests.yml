@@ -10,14 +10,7 @@ on:
     - cron: '0 0 * * 0'
 
 permissions:
-  # Allows the EndBug/add-and-commit step to commit the package manager changes,
-  # adding the AppMap language library and configuration file appmap.yml.
-  # Once the EndBug/add-and-commit is removed, this permission can be removed, 
-  # unless you need it for other reasons.
   contents: write
-
-  # Allows the getappmap/archive-action to write a PR comment with the 
-  # AppMap configuration status.
   pull-requests: write
 
 env:
@@ -29,8 +22,6 @@ env:
 
 jobs:
   build:
-    # if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.ref != 'main')
-    # if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -50,11 +41,6 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5 --name=service_postgresql
 
     steps:
-      # - name: Install PostGIS
-      #   run: |
-      #     set -x
-      #     docker exec -u root service_postgresql /bin/sh -c "apk --no-cache add postgis"
-
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
@@ -83,10 +69,7 @@ jobs:
         uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4
         with:
           python-version: ${{ matrix.python-version }}
-      # - name: Install OS dependencies
-      #   run: |
-      #     DEBIAN_FRONTEND=noninteractive apt update
-      #     DEBIAN_FRONTEND=noninteractive apt install curl
+
       - uses: snok/install-poetry@93ada01c735cc8a383ce0ce2ae205a21c415379b # v1
         with:
           version: 1.6.1 # pin the version as they keep changing their APIs
@@ -101,7 +84,6 @@ jobs:
           echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
           python  -c "import os; print(os.environ['VIRTUAL_ENV'])"
 
-      # Begin AppMap CI language agent installation
       - name: Install AppMap tools
         id: install-appmap
         uses: getappmap/install-action@v1
@@ -111,14 +93,11 @@ jobs:
         uses: EndBug/add-and-commit@v9
         with:
           message: "ci: Add AppMap language agent and appmap.yml"
-      # End AppMap CI language agent installation
 
       - name: Lint with flake8
         run: |
           . venv/bin/activate
-          # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Test with pytest
@@ -130,6 +109,14 @@ jobs:
         run: |
           . venv/bin/activate
           pytest --cov-report=xml
+
+      # Begin AppMap bootstrap archive step
+      - name: Archive AppMaps
+        id: appmap-bootstrap-archive-appmaps
+        uses: getappmap/archive-action@v1
+        with:
+          revision: ${{ github.event.pull_request.base.sha }}
+      # End AppMap bootstrap archive step
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3
